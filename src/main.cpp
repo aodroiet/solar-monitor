@@ -167,6 +167,14 @@ void setup(void)
                   //
                 });
 
+  httpServer.on("/wifi", HTTP_GET, []()
+                {
+                  String html = WiFi_page;
+                  html.replace("%CSS_STYLES%", css("CSS_STYLES"));
+                  httpServer.send(200, "text/html", html);
+                  //
+                });
+
   httpServer.on("/data", HTTP_GET, []()
                 {
                   String jsonResponse = "{";
