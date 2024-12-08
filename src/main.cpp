@@ -1,28 +1,23 @@
-#include "secrets.h" //ลบบรรทัดนี้
-
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
+// #include <ESP8266HTTPUpdateServer.h>
 #include <ModbusMaster.h>
 #include <SoftwareSerial.h>
+#include <EEPROM.h>
 #include "html.h"
 
 #define RTS_PIN D5
 #define RX_PIN D6
 #define TX_PIN D7
 
-#ifndef SECRETS_H
-const char *ssid = "your_wifi_ssid";
-const char *password = "your_wifi_password";
-const char *update_username = "your_update_username";
-const char *update_password = "your_update_password";
-#endif
+String ap_ssid;
+bool wifiConfigured = false;
 
 unsigned long previousMillis = 0;
 const long interval = 1000;
 
 ESP8266WebServer httpServer(80);
-ESP8266HTTPUpdateServer httpUpdater;
+// ESP8266HTTPUpdateServer httpUpdater;
 
 ModbusMaster node;
 SoftwareSerial RS485Serial(RX_PIN, TX_PIN);
@@ -81,33 +76,37 @@ bool fetchData()
   return false;
 }
 
-void handleRoot()
+void handleReset()
 {
-  httpServer.send_P(200, "text/html", MAIN_page);
+  EEPROM.begin(512);
+  for (int i = 0; i < 128; ++i)
+    EEPROM.write(i, 0);
+  EEPROM.commit();
+  wifiConfigured = false;
+  httpServer.send(200, "text/html", "<h1>WiFi settings reset! Rebooting...</h1>");
+  delay(1000);
+  ESP.restart();
 }
 
-void handleData()
+String css(const String &var)
 {
-  String jsonResponse = "{";
-  jsonResponse += "\"Inverter_State\":" + String(sensorData.Inverter_State) + ",";
-  jsonResponse += "\"PV_Voltage\":" + String(sensorData.PV_Voltage) + ",";
-  jsonResponse += "\"PV_Current\":" + String(sensorData.PV_Current) + ",";
-  jsonResponse += "\"PV_Power\":" + String(sensorData.PV_Power) + ",";
-  jsonResponse += "\"Bus_Voltage\":" + String(sensorData.Bus_Voltage) + ",";
-  jsonResponse += "\"AC_Voltage\":" + String(sensorData.AC_Voltage) + ",";
-  jsonResponse += "\"AC_Current\":" + String(sensorData.AC_Current) + ",";
-  jsonResponse += "\"Grid_Frequency\":" + String(sensorData.Grid_Frequency) + ",";
-  jsonResponse += "\"Active_Power\":" + String(sensorData.Active_Power) + ",";
-  jsonResponse += "\"Reactive_Power\":" + String(sensorData.Reactive_Power) + ",";
-  jsonResponse += "\"Daily_Production\":" + String(sensorData.Daily_Production) + ",";
-  jsonResponse += "\"Total_Production\":" + String(sensorData.Total_Production) + ",";
-  jsonResponse += "\"Temperature_Module\":" + String(sensorData.Temperature_Module) + ",";
-  jsonResponse += "\"Temperature_Inverter\":" + String(sensorData.Temperature_Inverter) + ",";
-  jsonResponse += "\"Total_Running_Hour\":" + String(sensorData.Total_Running_Hour) + ",";
-  jsonResponse += "\"RSSI\":" + String(WiFi.RSSI());
-  jsonResponse += "}";
-  httpServer.send(200, "application/json", jsonResponse);
-  // httpServer.sendHeader("Access-Control-Allow-Origin", "*");
+  if (var == "CSS_STYLES")
+  {
+    return CSS_styles;
+  }
+  return String();
+}
+
+String readStringFromEEPROM(int startAddr)
+{
+  String str = "";
+  for (int i = 0; i < 32; ++i)
+  {
+    char c = EEPROM.read(startAddr + i);
+    if (c != 0)
+      str += c;
+  }
+  return str;
 }
 
 void setup(void)
@@ -122,33 +121,121 @@ void setup(void)
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.println();
-  while (WiFi.status() != WL_CONNECTED)
+  EEPROM.begin(512);
+  char stored_ssid[32];
+  char stored_password[32];
+  for (int i = 0; i < 32; ++i)
   {
-    delay(500);
-    Serial.print(".");
+    stored_ssid[i] = EEPROM.read(i);
+    stored_password[i] = EEPROM.read(32 + i);
   }
-  Serial.println();
-  Serial.print("Connected to ");
-  Serial.println(ssid);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  bool isStaticIP = EEPROM.read(64);
+  if (strlen(stored_ssid) > 0 && strlen(stored_password) > 0)
+  {
+    if (isStaticIP)
+    {
+      IPAddress static_ip, gateway, subnet;
+      static_ip.fromString(readStringFromEEPROM(65));
+      gateway.fromString(readStringFromEEPROM(97));
+      subnet.fromString(readStringFromEEPROM(129));
+      WiFi.config(static_ip, gateway, subnet);
+    }
+    WiFi.begin(stored_ssid, stored_password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+    Serial.print("Connected to ");
+    Serial.println(stored_ssid);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+    wifiConfigured = true;
+  }
+  else
+  {
+    WiFi.softAP(ap_ssid);
+    Serial.println("Access Point started!");
+  }
 
-  httpServer.on("/", HTTP_GET, handleRoot);
-  httpServer.on("/data", HTTP_GET, handleData);
-  httpUpdater.setup(&httpServer, "/update", update_username, update_password);
+  httpServer.on("/", HTTP_GET, []()
+                {
+                  String html = wifiConfigured ? MAIN_page : WiFi_page;
+                  html.replace("%CSS_STYLES%", css("CSS_STYLES"));
+                  httpServer.send(200, "text/html", html);
+                  //
+                });
+
+  httpServer.on("/data", HTTP_GET, []()
+                {
+                  String jsonResponse = "{";
+                  jsonResponse += "\"Inverter_State\":" + String(sensorData.Inverter_State) + ",";
+                  jsonResponse += "\"PV_Voltage\":" + String(sensorData.PV_Voltage) + ",";
+                  jsonResponse += "\"PV_Current\":" + String(sensorData.PV_Current) + ",";
+                  jsonResponse += "\"PV_Power\":" + String(sensorData.PV_Power) + ",";
+                  jsonResponse += "\"Bus_Voltage\":" + String(sensorData.Bus_Voltage) + ",";
+                  jsonResponse += "\"AC_Voltage\":" + String(sensorData.AC_Voltage) + ",";
+                  jsonResponse += "\"AC_Current\":" + String(sensorData.AC_Current) + ",";
+                  jsonResponse += "\"Grid_Frequency\":" + String(sensorData.Grid_Frequency) + ",";
+                  jsonResponse += "\"Active_Power\":" + String(sensorData.Active_Power) + ",";
+                  jsonResponse += "\"Reactive_Power\":" + String(sensorData.Reactive_Power) + ",";
+                  jsonResponse += "\"Daily_Production\":" + String(sensorData.Daily_Production) + ",";
+                  jsonResponse += "\"Total_Production\":" + String(sensorData.Total_Production) + ",";
+                  jsonResponse += "\"Temperature_Module\":" + String(sensorData.Temperature_Module) + ",";
+                  jsonResponse += "\"Temperature_Inverter\":" + String(sensorData.Temperature_Inverter) + ",";
+                  jsonResponse += "\"Total_Running_Hour\":" + String(sensorData.Total_Running_Hour) + ",";
+                  jsonResponse += "\"RSSI\":" + String(WiFi.RSSI());
+                  jsonResponse += "}";
+                  httpServer.send(200, "application/json", jsonResponse);
+                  // httpServer.sendHeader("Access-Control-Allow-Origin", "*");
+                });
+
+  httpServer.on("/save", HTTP_POST, []()
+                {
+                  EEPROM.begin(512);
+                  String ssid = httpServer.arg("ssid");
+                  String password = httpServer.arg("password");
+                  String ipconfig = httpServer.arg("ipconfig");
+                  for (int i = 0; i < 32; ++i)
+                    EEPROM.write(i, ssid[i]);
+                  for (int i = 0; i < 32; ++i)
+                    EEPROM.write(32 + i, password[i]);
+                  EEPROM.write(64, ipconfig == "static" ? 1 : 0);
+                  if (ipconfig == "static")
+                  {
+                    String static_ip = httpServer.arg("address");
+                    String gateway = httpServer.arg("gateway");
+                    String subnet = httpServer.arg("netmask");
+                    for (int i = 0; i < 32; ++i)
+                      EEPROM.write(65 + i, static_ip[i]);
+                    for (int i = 0; i < 32; ++i)
+                      EEPROM.write(97 + i, gateway[i]);
+                    for (int i = 0; i < 32; ++i)
+                      EEPROM.write(129 + i, subnet[i]);
+                  }
+                  EEPROM.commit();
+                  wifiConfigured = true;
+                  httpServer.send(200, "text/html", "<h1>WiFi settings saved! Rebooting...</h1>");
+                  delay(1000);
+                  ESP.restart();
+                  //
+                });
+
+  httpServer.on("/reset", HTTP_POST, handleReset);
+  // httpUpdater.setup(&httpServer, "/update", update_username, update_password);
   httpServer.begin();
+  Serial.println("HTTP server started");
 }
 
 void loop(void)
 {
+  httpServer.handleClient();
+
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval)
   {
     previousMillis = currentMillis;
     fetchData();
   }
-  httpServer.handleClient();
 }
