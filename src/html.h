@@ -82,7 +82,7 @@ const char CSS_styles[] = R"css(
         box-sizing: border-box;
         font-size: 16px;
         color: #ffffff;
-        text-shadow: 1px 1px 3px #000000;
+        text-shadow: 1px 1px 3px #00000080;
     }
 
     table {
@@ -121,6 +121,7 @@ const char CSS_styles[] = R"css(
         border: 1px solid #ccc;
         border-radius: 6px;
         box-sizing: border-box;
+        text-shadow: none;
     }
 
     input[type=submit] {
@@ -134,7 +135,7 @@ const char CSS_styles[] = R"css(
         border-radius: 6px;
         margin-bottom: 10px;
         -webkit-transition: background .3s ease-in-out;
-        transition: background .3s ease-in-out
+        transition: background .3s ease-in-out;
     }
 
     input[type="submit"]:hover {
@@ -334,13 +335,6 @@ const char WiFi_page[] = R"html(
                     <label>
                         <input name="password" type="password" placeholder="Password" />
                     </label>
-                    <div class="ip-config">
-                        <a>IP Configuration:</a>
-                        <input type="radio" id="dhcp" name="ipconfig" value="dhcp" checked>
-                        <label for="dhcp">DHCP</label>
-                        <input type="radio" id="static" name="ipconfig" value="static">
-                        <label for="static">Static</label>
-                    </div>
                     <div id="staticIPConfig">
                         <label>
                             <input name="address" type="text" placeholder="Address" />
@@ -351,6 +345,13 @@ const char WiFi_page[] = R"html(
                         <label>
                             <input name="netmask" type="text" placeholder="Netmask" />
                         </label>
+                    </div>
+                    <div class="ip-config">
+                        <a>IP Configuration:</a>
+                        <input type="radio" id="dhcp" name="ipconfig" value="dhcp" checked>
+                        <label for="dhcp">DHCP</label>
+                        <input type="radio" id="static" name="ipconfig" value="static">
+                        <label for="static">Static</label>
                     </div>
                     <input type="submit" value="Connect" />
                 </form>
