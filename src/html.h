@@ -300,9 +300,6 @@ const char WiFi_page[] = R"html(
     <meta http-equiv="pragma" content="no-cache">
     <meta http-equiv="expires" content="-1">
     <title>WiFi Configuration</title>
-    <link rel="icon" type="image/png"
-        href="https://cdn.icon-icons.com/icons2/2836/PNG/512/station_solar_icon_180267.png">
-    <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
     %CSS_STYLES%
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -354,9 +351,6 @@ const char WiFi_page[] = R"html(
                         <label for="static">Static</label>
                     </div>
                     <input type="submit" value="Connect" />
-                </form>
-                <form id="resetForm" action="/reset" method="post">
-                    <input type="submit" value="Reset WiFi Settings">
                 </form>
             </div>
         </div>
