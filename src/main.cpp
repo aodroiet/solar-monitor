@@ -11,16 +11,19 @@
 #define TX_PIN D7
 
 String ap_ssid;
+ESP8266WebServer httpServer(80);
+
+ModbusMaster node;
+SoftwareSerial RS485Serial(RX_PIN, TX_PIN);
+
 bool wifiConfigured = false;
 
 unsigned long previousMillis = 0;
 const long interval = 1000;
 
-ESP8266WebServer httpServer(80);
-// ESP8266HTTPUpdateServer httpUpdater;
-
-ModbusMaster node;
-SoftwareSerial RS485Serial(RX_PIN, TX_PIN);
+bool resetPending = false;
+unsigned long buttonPressTime = 0;
+const int resetButtonPin = 0;
 
 struct SensorData
 {
@@ -109,13 +112,14 @@ String readStringFromEEPROM(int startAddr)
   return str;
 }
 
-void setup(void)
+void setup()
 {
   Serial.begin(9600);
   RS485Serial.begin(9600);
 
   pinMode(RTS_PIN, OUTPUT);
   digitalWrite(RTS_PIN, LOW);
+  pinMode(resetButtonPin, INPUT_PULLUP);
 
   node.begin(0x01, RS485Serial);
   node.preTransmission(preTransmission);
@@ -163,17 +167,13 @@ void setup(void)
                 {
                   String html = wifiConfigured ? MAIN_page : WiFi_page;
                   html.replace("%CSS_STYLES%", css("CSS_STYLES"));
-                  httpServer.send(200, "text/html", html);
-                  //
-                });
+                  httpServer.send(200, "text/html", html); });
 
   httpServer.on("/wifi", HTTP_GET, []()
                 {
                   String html = WiFi_page;
                   html.replace("%CSS_STYLES%", css("CSS_STYLES"));
-                  httpServer.send(200, "text/html", html);
-                  //
-                });
+                  httpServer.send(200, "text/html", html); });
 
   httpServer.on("/data", HTTP_GET, []()
                 {
@@ -196,8 +196,7 @@ void setup(void)
                   jsonResponse += "\"RSSI\":" + String(WiFi.RSSI());
                   jsonResponse += "}";
                   httpServer.send(200, "application/json", jsonResponse);
-                  // httpServer.sendHeader("Access-Control-Allow-Origin", "*");
-                });
+                  httpServer.sendHeader("Access-Control-Allow-Origin", "*"); });
 
   httpServer.on("/save", HTTP_POST, []()
                 {
@@ -226,9 +225,7 @@ void setup(void)
                   wifiConfigured = true;
                   httpServer.send(200, "text/html", "<h1>WiFi settings saved! Rebooting...</h1>");
                   delay(1000);
-                  ESP.restart();
-                  //
-                });
+                  ESP.restart(); });
 
   httpServer.on("/reset", HTTP_POST, handleReset);
   // httpUpdater.setup(&httpServer, "/update", update_username, update_password);
@@ -236,9 +233,26 @@ void setup(void)
   Serial.println("HTTP server started");
 }
 
-void loop(void)
+void loop()
 {
   httpServer.handleClient();
+
+  if (digitalRead(resetButtonPin) == LOW)
+  {
+    if (buttonPressTime == 0)
+    {
+      buttonPressTime = millis();
+    }
+    else if (millis() - buttonPressTime >= 10000 && !resetPending)
+    {
+      resetPending = true;
+      handleReset();
+    }
+  }
+  else
+  {
+    buttonPressTime = 0;
+  }
 
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval)
