@@ -1,6 +1,5 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-// #include <ESP8266HTTPUpdateServer.h>
 #include <ModbusMaster.h>
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
@@ -9,6 +8,7 @@
 #define RTS_PIN D5
 #define RX_PIN D6
 #define TX_PIN D7
+#define RESET_PIN D3
 
 String ap_ssid;
 ESP8266WebServer httpServer(80);
@@ -16,32 +16,17 @@ ESP8266WebServer httpServer(80);
 ModbusMaster node;
 SoftwareSerial RS485Serial(RX_PIN, TX_PIN);
 
-bool wifiConfigured = false;
-
-unsigned long previousMillis = 0;
-const long interval = 1000;
-
 bool resetPending = false;
-unsigned long buttonPressTime = 0;
-const int resetButtonPin = 0;
+bool wifiConfigured = false;
+const long interval = 1000;
+unsigned long previousMillis = 0, buttonPressTime = 0;
 
 struct SensorData
 {
+  float PV_Voltage, PV_Current, PV_Power, Bus_Voltage, AC_Voltage, AC_Current, Grid_Frequency, Active_Power, Reactive_Power, Daily_Production;
+  uint8_t Temperature_Module, Temperature_Inverter;
   uint16_t Inverter_State;
-  float PV_Voltage;
-  float PV_Current;
-  float PV_Power;
-  float Bus_Voltage;
-  float AC_Voltage;
-  float AC_Current;
-  float Grid_Frequency;
-  float Active_Power;
-  float Reactive_Power;
-  float Daily_Production;
-  uint32_t Total_Production;
-  uint8_t Temperature_Module;
-  uint8_t Temperature_Inverter;
-  uint32_t Total_Running_Hour;
+  uint32_t Total_Production, Total_Running_Hour;
 } sensorData;
 
 void preTransmission()
@@ -86,7 +71,7 @@ void handleReset()
     EEPROM.write(i, 0);
   EEPROM.commit();
   wifiConfigured = false;
-  httpServer.send(200, "text/html", "<h1>WiFi settings reset! Rebooting...</h1>");
+  Serial.println("WiFi settings reset! Rebooting...");
   delay(1000);
   ESP.restart();
 }
@@ -119,7 +104,7 @@ void setup()
 
   pinMode(RTS_PIN, OUTPUT);
   digitalWrite(RTS_PIN, LOW);
-  pinMode(resetButtonPin, INPUT_PULLUP);
+  pinMode(RESET_PIN, INPUT_PULLUP);
 
   node.begin(0x01, RS485Serial);
   node.preTransmission(preTransmission);
@@ -166,12 +151,6 @@ void setup()
   httpServer.on("/", HTTP_GET, []()
                 {
                   String html = wifiConfigured ? MAIN_page : WiFi_page;
-                  html.replace("%CSS_STYLES%", css("CSS_STYLES"));
-                  httpServer.send(200, "text/html", html); });
-
-  httpServer.on("/wifi", HTTP_GET, []()
-                {
-                  String html = WiFi_page;
                   html.replace("%CSS_STYLES%", css("CSS_STYLES"));
                   httpServer.send(200, "text/html", html); });
 
@@ -228,16 +207,15 @@ void setup()
                   ESP.restart(); });
 
   httpServer.on("/reset", HTTP_POST, handleReset);
-  // httpUpdater.setup(&httpServer, "/update", update_username, update_password);
   httpServer.begin();
-  Serial.println("HTTP server started");
+  Serial.println("HTTP server started!");
 }
 
 void loop()
 {
   httpServer.handleClient();
 
-  if (digitalRead(resetButtonPin) == LOW)
+  if (digitalRead(RESET_PIN) == LOW)
   {
     if (buttonPressTime == 0)
     {
