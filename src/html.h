@@ -187,30 +187,6 @@ const char MAIN_page[] = R"html(
         href="https://cdn.icon-icons.com/icons2/2836/PNG/512/station_solar_icon_180267.png">
     <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
     %CSS_STYLES%
-    <script>
-        function fetchData() {
-            fetch('/data')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('PV_Voltage').innerText = data.PV_Voltage;
-                    document.getElementById('PV_Current').innerText = data.PV_Current;
-                    document.getElementById('PV_Power').innerText = data.PV_Power;
-                    document.getElementById('Bus_Voltage').innerText = data.Bus_Voltage;
-                    document.getElementById('AC_Voltage').innerText = data.AC_Voltage;
-                    document.getElementById('AC_Current').innerText = data.AC_Current;
-                    document.getElementById('Grid_Frequency').innerText = data.Grid_Frequency;
-                    document.getElementById('Active_Power').innerText = data.Active_Power;
-                    document.getElementById('Reactive_Power').innerText = data.Reactive_Power;
-                    document.getElementById('Daily_Production').innerText = data.Daily_Production;
-                    document.getElementById('Total_Production').innerText = data.Total_Production.toLocaleString();
-                    document.getElementById('Temperature_Module').innerText = data.Temperature_Module;
-                    document.getElementById('Temperature_Inverter').innerText = data.Temperature_Inverter;
-                    document.getElementById('Total_Running_Hour').innerText = data.Total_Running_Hour.toLocaleString();
-                    document.getElementById('RSSI').innerText = data.RSSI;
-                });
-        }
-        setInterval(fetchData, 3000);
-    </script>
 </head>
 
 <body>
@@ -284,6 +260,30 @@ const char MAIN_page[] = R"html(
             </div>
         </div>
     </div>
+    <script>
+        function fetchData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('PV_Voltage').innerText = data.PV_Voltage;
+                    document.getElementById('PV_Current').innerText = data.PV_Current;
+                    document.getElementById('PV_Power').innerText = data.PV_Power;
+                    document.getElementById('Bus_Voltage').innerText = data.Bus_Voltage;
+                    document.getElementById('AC_Voltage').innerText = data.AC_Voltage;
+                    document.getElementById('AC_Current').innerText = data.AC_Current;
+                    document.getElementById('Grid_Frequency').innerText = data.Grid_Frequency;
+                    document.getElementById('Active_Power').innerText = data.Active_Power;
+                    document.getElementById('Reactive_Power').innerText = data.Reactive_Power;
+                    document.getElementById('Daily_Production').innerText = data.Daily_Production;
+                    document.getElementById('Total_Production').innerText = data.Total_Production.toLocaleString();
+                    document.getElementById('Temperature_Module').innerText = data.Temperature_Module;
+                    document.getElementById('Temperature_Inverter').innerText = data.Temperature_Inverter;
+                    document.getElementById('Total_Running_Hour').innerText = data.Total_Running_Hour.toLocaleString();
+                    document.getElementById('RSSI').innerText = data.RSSI;
+                });
+        }
+        setInterval(fetchData, 3000);
+    </script>
 </body>
 
 </html>
@@ -301,23 +301,6 @@ const char WiFi_page[] = R"html(
     <meta http-equiv="expires" content="-1">
     <title>WiFi Configuration</title>
     %CSS_STYLES%
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.getElementById('staticIPConfig').style.display = 'none';
-            document.querySelectorAll('input[name="ipconfig"]').forEach(elem => {
-                elem.addEventListener('change', function () {
-                    var staticIPConfig = document.getElementById('staticIPConfig');
-                    staticIPConfig.style.display = this.value === 'static' ? 'block' : 'none';
-                });
-            });
-            document.getElementById('resetForm').addEventListener('submit', function (e) {
-                var confirmReset = confirm('Are you sure you want to reset WiFi settings?');
-                if (!confirmReset) {
-                    e.preventDefault();
-                }
-            });
-        });
-    </script>
 </head>
 
 <body>
@@ -355,6 +338,17 @@ const char WiFi_page[] = R"html(
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('staticIPConfig').style.display = 'none';
+            document.querySelectorAll('input[name="ipconfig"]').forEach(elem => {
+                elem.addEventListener('change', function () {
+                    var staticIPConfig = document.getElementById('staticIPConfig');
+                    staticIPConfig.style.display = this.value === 'static' ? 'block' : 'none';
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>
