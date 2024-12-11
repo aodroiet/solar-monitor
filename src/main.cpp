@@ -18,10 +18,11 @@ ESP8266WebServer httpServer(80);
 ModbusMaster node;
 SoftwareSerial RS485Serial(RX_PIN, TX_PIN);
 
+const long fetchInterval = 1000;
+const long resetInterval = 5000;
+
 bool resetPending = false;
 bool wifiConfigured = false;
-unsigned long previousMillis = 0;
-unsigned long buttonPressTime = 0;
 
 struct SensorData {
   uint16_t Inverter_State;
@@ -50,50 +51,52 @@ void postTransmission() {
 }
 
 bool fetchData() {
-  uint8_t result = node.readHoldingRegisters(0x0000, 0x1F);
-  if (result == node.ku8MBSuccess) {
-    sensorData.Inverter_State = node.getResponseBuffer(0x00);
-    sensorData.PV_Voltage = node.getResponseBuffer(0x06) * 0.1;
-    sensorData.PV_Current = node.getResponseBuffer(0x07) * 0.01;
-    sensorData.PV_Power = node.getResponseBuffer(0x0A) * 0.01;
-    sensorData.Bus_Voltage = node.getResponseBuffer(0x1D) * 0.1;
-    sensorData.AC_Voltage = node.getResponseBuffer(0x0F) * 0.1;
-    sensorData.AC_Current = node.getResponseBuffer(0x10) * 0.01;
-    sensorData.Grid_Frequency = node.getResponseBuffer(0x0E) * 0.01;
-    sensorData.Active_Power = node.getResponseBuffer(0x0C) * 0.01;
-    sensorData.Reactive_Power = node.getResponseBuffer(0x0D) * 0.01;
-    sensorData.Daily_Production = node.getResponseBuffer(0x19) * 0.01;
-    sensorData.Total_Production = (node.getResponseBuffer(0x15) << 16) + node.getResponseBuffer(0x16);
-    sensorData.Temperature_Module = node.getResponseBuffer(0x1B);
-    sensorData.Temperature_Inverter = node.getResponseBuffer(0x1C);
-    sensorData.Total_Running_Hour = (node.getResponseBuffer(0x17) << 16) + node.getResponseBuffer(0x18);
-    return true;
+  static unsigned long lastFetchTime = 0;
+  if (millis() - lastFetchTime >= fetchInterval) {
+    lastFetchTime = millis();
+    uint8_t result = node.readHoldingRegisters(0x0000, 0x1F);
+    if (result == node.ku8MBSuccess) {
+      sensorData.Inverter_State = node.getResponseBuffer(0x00);
+      sensorData.PV_Voltage = node.getResponseBuffer(0x06) * 0.1;
+      sensorData.PV_Current = node.getResponseBuffer(0x07) * 0.01;
+      sensorData.PV_Power = node.getResponseBuffer(0x0A) * 0.01;
+      sensorData.Bus_Voltage = node.getResponseBuffer(0x1D) * 0.1;
+      sensorData.AC_Voltage = node.getResponseBuffer(0x0F) * 0.1;
+      sensorData.AC_Current = node.getResponseBuffer(0x10) * 0.01;
+      sensorData.Grid_Frequency = node.getResponseBuffer(0x0E) * 0.01;
+      sensorData.Active_Power = node.getResponseBuffer(0x0C) * 0.01;
+      sensorData.Reactive_Power = node.getResponseBuffer(0x0D) * 0.01;
+      sensorData.Daily_Production = node.getResponseBuffer(0x19) * 0.01;
+      sensorData.Total_Production = (node.getResponseBuffer(0x15) << 16) + node.getResponseBuffer(0x16);
+      sensorData.Temperature_Module = node.getResponseBuffer(0x1B);
+      sensorData.Temperature_Inverter = node.getResponseBuffer(0x1C);
+      sensorData.Total_Running_Hour = (node.getResponseBuffer(0x17) << 16) + node.getResponseBuffer(0x18);
+      return true;
+    }
   }
   return false;
 }
 
-void handleReset() {
-  for (int i = 0; i < 128; ++i)
-    EEPROM.write(i, 0);
-  EEPROM.commit();
-  wifiConfigured = false;
-  Serial.println("WiFi settings reset! Rebooting...");
-  for (int i = 0; i < 5; ++i) {
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-  }
-  ESP.restart();
-}
-
-void checkReset() {
+void resetWiFi() {
+  static unsigned long buttonPressTime = 0;
   if (digitalRead(RESET_PIN) == LOW) {
     if (buttonPressTime == 0) {
       buttonPressTime = millis();
-    } else if (millis() - buttonPressTime >= 5000 && !resetPending) {
+    } else if (millis() - buttonPressTime >= resetInterval && !resetPending) {
       resetPending = true;
-      handleReset();
+      for (int i = 0; i < 128; ++i) {
+        EEPROM.write(i, 0);
+      }
+      EEPROM.commit();
+      wifiConfigured = false;
+      Serial.println("WiFi settings reset! Rebooting...");
+      for (int i = 0; i < 5; ++i) {
+        digitalWrite(LED_PIN, LOW);
+        delay(500);
+        digitalWrite(LED_PIN, HIGH);
+        delay(500);
+      }
+      ESP.restart();
     }
   } else {
     buttonPressTime = 0;
@@ -101,7 +104,7 @@ void checkReset() {
   }
 }
 
-String css(const String &var) {
+String getCssStyles(const String &var) {
   if (var == "CSS_STYLES") {
     return CSS_styles;
   }
@@ -160,7 +163,7 @@ void setup() {
     }
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
-      checkReset();
+      resetWiFi();
       Serial.print(".");
     }
     Serial.println();
@@ -177,7 +180,7 @@ void setup() {
 
   httpServer.on("/", HTTP_GET, []() {
     String html = wifiConfigured ? MAIN_page : WiFi_page;
-    html.replace("%CSS_STYLES%", css("CSS_STYLES"));
+    html.replace("%CSS_STYLES%", getCssStyles("CSS_STYLES"));
     httpServer.send(200, "text/html", html);
   });
 
@@ -234,11 +237,7 @@ void setup() {
 }
 
 void loop() {
-  checkReset();
   httpServer.handleClient();
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= 1000) {
-    previousMillis = currentMillis;
-    fetchData();
-  }
+  fetchData();
+  resetWiFi();
 }
