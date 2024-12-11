@@ -6,10 +6,11 @@
 
 #include "html.h"
 
-#define RTS_PIN D5
-#define RX_PIN D6
-#define TX_PIN D7
-#define RESET_PIN D3
+#define RX_PIN 12
+#define TX_PIN 13
+#define RTS_PIN 14
+#define LED_PIN 2
+#define RESET_PIN 0
 
 String ap_ssid;
 ESP8266WebServer httpServer(80);
@@ -78,7 +79,12 @@ void handleReset() {
   EEPROM.commit();
   wifiConfigured = false;
   Serial.println("WiFi settings reset! Rebooting...");
-  delay(1000);
+  for (int i = 0; i < 5; ++i) {
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+  }
   ESP.restart();
 }
 
@@ -117,6 +123,8 @@ void setup() {
   Serial.begin(9600);
   RS485Serial.begin(9600);
 
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
   pinMode(RTS_PIN, OUTPUT);
   digitalWrite(RTS_PIN, LOW);
   pinMode(RESET_PIN, INPUT_PULLUP);
@@ -221,7 +229,6 @@ void setup() {
     ESP.restart();
   });
 
-  httpServer.on("/reset", HTTP_POST, handleReset);
   httpServer.begin();
 }
 
