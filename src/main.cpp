@@ -73,7 +73,6 @@ bool fetchData() {
 }
 
 void handleReset() {
-  EEPROM.begin(512);
   for (int i = 0; i < 128; ++i)
     EEPROM.write(i, 0);
   EEPROM.commit();
@@ -120,20 +119,23 @@ String readEEPROM(int startAddr) {
 }
 
 void setup() {
-  Serial.begin(9600);
-  RS485Serial.begin(9600);
+  Serial.begin(115200);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
+
   pinMode(RTS_PIN, OUTPUT);
   digitalWrite(RTS_PIN, LOW);
+
   pinMode(RESET_PIN, INPUT_PULLUP);
 
+  RS485Serial.begin(9600);
   node.begin(0x01, RS485Serial);
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 
   EEPROM.begin(512);
+
   char ssid[32];
   char password[32];
   for (int i = 0; i < 32; ++i) {
@@ -203,7 +205,6 @@ void setup() {
   });
 
   httpServer.on("/save", HTTP_POST, []() {
-    EEPROM.begin(512);
     String ssid = httpServer.arg("ssid");
     String password = httpServer.arg("password");
     String ipconfig = httpServer.arg("ipconfig");
