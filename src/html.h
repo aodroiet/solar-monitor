@@ -17,7 +17,7 @@ const char CSS_styles[] = R"css(
     }
 
     body {
-        background: #555555;
+        background: #2c3e50;
         background: -webkit-linear-gradient(315deg, hsla(236.6, 0%, 53.52%, 1) 0, hsla(236.6, 0%, 53.52%, 0) 70%),
             -webkit-linear-gradient(65deg, hsla(220.75, 34.93%, 26.52%, 1) 10%, hsla(220.75, 34.93%, 26.52%, 0) 80%),
             -webkit-linear-gradient(135deg, hsla(46.42, 36.62%, 83.92%, 1) 15%, hsla(46.42, 36.62%, 83.92%, 0) 80%),
@@ -28,7 +28,7 @@ const char CSS_styles[] = R"css(
             linear-gradient(245deg, hsla(191.32, 50.68%, 56.45%, 1) 100%, hsla(191.32, 50.68%, 56.45%, 0) 70%);
     }
 
-    .ie-fixMinHeight {
+    .flex {
         display: -webkit-box;
         display: -ms-flexbox;
         display: flex;
@@ -51,9 +51,8 @@ const char CSS_styles[] = R"css(
         padding: 40px;
         -webkit-transition: width .3s ease-in-out;
         transition: width .3s ease-in-out;
-        background: #00000030;
-        border-radius: 10px;
-        box-shadow: 2px 3px 6px #00000060;
+        background: #00000040;
+        border-radius: 6px;
     }
 
     @media only screen and (min-width:1px) and (max-width:575px) {
@@ -62,9 +61,9 @@ const char CSS_styles[] = R"css(
         }
 
         .wrap {
-
             width: 100%;
             height: 100%;
+            border-radius: 0px;
         }
     }
 
@@ -82,8 +81,8 @@ const char CSS_styles[] = R"css(
         -webkit-box-sizing: border-box;
         box-sizing: border-box;
         font-size: 16px;
-        color: #ffffff;
-        text-shadow: 1px 1px 3px #00000080;
+        color: #fff;
+        text-shadow: 1px 1px 2px #00000080;
     }
 
     table {
@@ -103,7 +102,7 @@ const char CSS_styles[] = R"css(
     h1 {
         text-align: center;
         font-size: 24px !important;
-        margin-bottom: 20px;
+        margin-top: 5px;
     }
 
     label {
@@ -126,7 +125,7 @@ const char CSS_styles[] = R"css(
     }
 
     input[type=submit] {
-        background: #3e4d59;
+        background: #3498db;
         color: #fff;
         border: 0;
         cursor: pointer;
@@ -140,7 +139,7 @@ const char CSS_styles[] = R"css(
     }
 
     input[type="submit"]:hover {
-        background: #33404a;
+        background: #2980b9;
     }
 
     .ip-config {
@@ -153,8 +152,8 @@ const char CSS_styles[] = R"css(
         vertical-align: middle;
     }
 
-    .ip-config a {
-        margin-right: 10px;
+    .ip-config input[type="radio"] {
+        margin-left: 10px;
     }
 
     #staticIPConfig {
@@ -181,7 +180,7 @@ const char MAIN_page[] = R"html(
 </head>
 
 <body>
-    <div class="ie-fixMinHeight">
+    <div class="flex">
         <div class="main">
             <div class="wrap">
                 <table>
@@ -273,7 +272,7 @@ const char MAIN_page[] = R"html(
                     document.getElementById('RSSI').innerText = data.RSSI;
                 });
         }
-        setInterval(fetchData, 3000);
+        setInterval(fetchData, 2000);
     </script>
 </body>
 
@@ -295,32 +294,27 @@ const char WiFi_page[] = R"html(
 </head>
 
 <body>
-    <div class="ie-fixMinHeight">
+    <div class="flex">
         <div class="main">
             <div class="wrap">
                 <h1>WiFi Configuration</h1>
                 <form action="/save" method="post">
-                    <label>
-                        <input name="ssid" type="text" placeholder="SSID" />
-                    </label>
-                    <label>
-                        <input name="password" type="password" placeholder="Password" />
-                    </label>
+                    <label for="ssid">SSID</label>
+                    <input id="ssid" name="ssid" type="text" placeholder="SSID" required />
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" placeholder="Password" />
                     <div id="staticIPConfig">
-                        <label>
-                            <input name="address" type="text" placeholder="Address" />
-                        </label>
-                        <label>
-                            <input name="gateway" type="text" placeholder="Gateway" />
-                        </label>
-                        <label>
-                            <input name="netmask" type="text" placeholder="Netmask" />
-                        </label>
+                        <label for="address">Address</label>
+                        <input id="address" name="address" type="text" placeholder="Address" />
+                        <label for="gateway">Gateway</label>
+                        <input id="gateway" name="gateway" type="text" placeholder="Gateway" />
+                        <label for="netmask">Netmask</label>
+                        <input id="netmask" name="netmask" type="text" placeholder="Netmask" />
                     </div>
                     <div class="ip-config">
-                        <a>IP Configuration:</a>
-                        <input type="radio" id="dhcp" name="ipconfig" value="dhcp" checked>
-                        <label for="dhcp">Auto</label>
+                        <a>IP Configuration :</a>
+                        <input type="radio" id="dynamic" name="ipconfig" value="dynamic" checked>
+                        <label for="dynamic">Auto</label>
                         <input type="radio" id="static" name="ipconfig" value="static">
                         <label for="static">Static</label>
                     </div>
@@ -330,15 +324,22 @@ const char WiFi_page[] = R"html(
         </div>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.getElementById('staticIPConfig').style.display = 'none';
+        function toggleIPConfig() {
+            const staticIPConfig = document.getElementById('staticIPConfig');
+            staticIPConfig.style.display = 'none';
             document.querySelectorAll('input[name="ipconfig"]').forEach(elem => {
                 elem.addEventListener('change', function () {
-                    var staticIPConfig = document.getElementById('staticIPConfig');
-                    staticIPConfig.style.display = this.value === 'static' ? 'block' : 'none';
+                    if (this.value === 'static') {
+                        staticIPConfig.style.display = 'block';
+                        staticIPConfig.querySelectorAll('input').forEach(input => input.required = true);
+                    } else {
+                        staticIPConfig.style.display = 'none';
+                        staticIPConfig.querySelectorAll('input').forEach(input => input.required = false);
+                    }
                 });
             });
-        });
+        }
+        document.addEventListener('DOMContentLoaded', toggleIPConfig);
     </script>
 </body>
 
