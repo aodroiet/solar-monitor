@@ -171,7 +171,7 @@ void connectToWiFi() {
       WiFi.begin(ssid.c_str());
     }
     while (WiFi.status() != WL_CONNECTED) {
-      blinkLED(LED_PIN, 1, 50, 500);
+      blinkLED(LED_PIN, 1, 20, 1000);
       Serial.print(".");
       checkButton();
     }
@@ -209,6 +209,7 @@ void setup() {
   });
 
   WebServer.on("/data", HTTP_GET, []() {
+    fetchData();
     String jsonResponse = "{";
     jsonResponse += "\"Inverter_State\":" + String(sensorData.Inverter_State) + ",";
     jsonResponse += "\"PV_Voltage\":" + String(sensorData.PV_Voltage) + ",";
@@ -237,6 +238,9 @@ void setup() {
 
 void loop() {
   WebServer.handleClient();
-  fetchData();
   checkButton();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    blinkLED(LED_PIN, 1, 20, 3000);
+  }
 }
