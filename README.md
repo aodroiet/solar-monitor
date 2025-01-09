@@ -12,11 +12,13 @@
 
 ## รูปภาพ
 
-![alt text](img/1.jpg)
-![alt text](img/2.png)
-
+<img src="img/001.jpg" width="400"/><img src="img/002.jpg" width="400"/>
+<img src="img/003.jpg" width="400"/><img src="img/004.jpg" width="400"/>
+<img src="img/005.jpg" width="400"/><img src="img/006.jpg" width="400"/>
+<img src="img/007.jpg" width="400"/><img src="img/008.jpg" width="400"/>
 
 
 ## แผนภาพการเชื่อมต่อ
 
-![alt text](img/3.png)
+![alt text](img/009.jpg)
+![alt text](img/010.jpg)
